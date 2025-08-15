@@ -65,10 +65,41 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(r=>log('SW registered', r.scope)).catch(e=>log('SW reg failed', e));
 }
 
+
+
 // ---------- State ----------
 let sessionCache = new Map();
 let __lastItemId = null;
 let pollTimer = null;
+
+// ---------- Service Worker -----------
+let wsHealthy = false;
+
+// When the socket opens, pause REST polling (WS will drive updates)
+window.addEventListener('jfws:open', () => {
+  wsHealthy = true;
+  log('WS open → pause polling');
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+});
+
+// If socket closes, resume polling as a fallback
+window.addEventListener('jfws:close', () => {
+  wsHealthy = false;
+  log('WS closed → resume polling');
+  startPolling();
+});
+
+// On pushed Sessions, refresh cache + UI (no extra fetch)
+window.addEventListener('jfws:sessions', (ev) => {
+  try {
+    const list = ev.detail || [];
+    sessionCache = new Map(list.map(s => [s.Id, s]));
+    fetchAndRenderNowPlaying(false).catch(e => uiErr('WS render', e));
+  } catch (e) {
+    uiErr('WS sessions handler', e);
+  }
+});
+
 
 // ---------- Defaults / Config ----------
 const defaults = { clientName:'JellyRemote PWA', pollMs:2000, bridgeUrl:'', bridgeSecret:'' };
@@ -124,6 +155,8 @@ window.__saveSettings = function(){
   setCfg(c);
   if (els.status){ els.status.textContent = 'Saved.'; setTimeout(()=> els.status.textContent='', 1200); }
   log('Saved cfg', c);
+  window.JFWS?.stop?.();
+  window.JFWS?.connect?.();
   startPolling(); // apply new interval immediately
 };
 
@@ -372,6 +405,12 @@ async function fetchAndRenderNowPlaying(forceArt=false){
     els.art.alt = s.NowPlayingItem.Name || '';
     __lastItemId = itemId;
   }
+  // hide broken icon if an image URL 404s
+  els.art?.addEventListener('error', ()=>{
+    els.art.removeAttribute('src');
+    els.art.setAttribute('data-empty','1');
+  });
+
 
   applyModeUI();
 }
@@ -379,6 +418,8 @@ async function fetchAndRenderNowPlaying(forceArt=false){
 // ---------- Polling ----------
 function startPolling(){
   if (pollTimer) clearInterval(pollTimer);
+  // If WS is healthy, don't run a parallel poll loop
+  if (wsHealthy) { log('Polling skipped (WS healthy)'); return; }
   const c0 = getCfg();
   const ms = parseInt(c0.pollMs || defaults.pollMs, 10);
   log('Start polling', ms, 'ms');
@@ -399,9 +440,13 @@ els.btnRefreshMeta?.addEventListener('click', async ()=>{
 document.addEventListener('DOMContentLoaded', async ()=>{
   log('Boot');
   try {
+    // kick off websocket (no-op if ws.js isn’t loaded)
+    window.JFWS?.connect?.();
+
     await loadSessions();
     startPolling();
   } catch(e) {
     uiErr('Boot', e);
   }
 });
+

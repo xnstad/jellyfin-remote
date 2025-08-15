@@ -232,6 +232,13 @@ button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
   display:inline-flex; align-items:center; justify-content:center;
 }
 
+.art[data-empty="1"],
+.art:not([src]),
+.art[src=""]{
+  border-color: transparent;   /* no white/gray ring */
+  visibility: hidden;          /* keep layout space, hide broken icon */
+}
+
 </style>
 
 </head>
@@ -384,7 +391,7 @@ button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
   </div>
 </div>
 
-
+<script defer src="ws.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
