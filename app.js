@@ -60,6 +60,11 @@ const els = {
   opStatus: document.getElementById('opStatus'),
 };
 
+const wsBadge = document.getElementById('wsBadge'); // add a small badge in your HTML
+
+window.addEventListener('jfws:open', () => { wsBadge && (wsBadge.textContent = 'WS: connected'); });
+window.addEventListener('jfws:close', () => { wsBadge && (wsBadge.textContent = 'WS: fallback polling'); });
+
 // ---------- SW ----------
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(r=>log('SW registered', r.scope)).catch(e=>log('SW reg failed', e));
@@ -71,54 +76,95 @@ if ('serviceWorker' in navigator) {
 let sessionCache = new Map();
 let __lastItemId = null;
 let pollTimer = null;
+let wsHealthy = false;      // socket open?
+let wsHasData = false;      // have we received any Sessions yet?
+let wsLastAt = 0;           // last time we saw a Sessions message
+let wsWatchdog = null;      // timer to detect stale WS
 
-// ---------- Service Worker -----------
-let wsHealthy = false;
-
-// When the socket opens, pause REST polling (WS will drive updates)
-window.addEventListener('jfws:open', () => {
-  wsHealthy = true;
-  log('WS open → pause polling');
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-});
-
-// If socket closes, resume polling as a fallback
-window.addEventListener('jfws:close', () => {
-  wsHealthy = false;
-  log('WS closed → resume polling');
-  startPolling();
-});
-
-// On pushed Sessions, refresh cache + UI (no extra fetch)
-window.addEventListener('jfws:sessions', (ev) => {
-  try {
-    const list = ev.detail || [];
-    sessionCache = new Map(list.map(s => [s.Id, s]));
-    fetchAndRenderNowPlaying(false).catch(e => uiErr('WS render', e));
-  } catch (e) {
-    uiErr('WS sessions handler', e);
-  }
-});
 
 
 // ---------- Defaults / Config ----------
-const defaults = { clientName:'JellyRemote PWA', pollMs:2000, bridgeUrl:'', bridgeSecret:'' };
-
-function makeUUID(){
+const defaults = { clientName:'JellyRemote PWA', pollMs:2000, bridgeUrl:'', bridgeSecret:'', bridgePrefs:{} };function makeUUID(){
   try { if (crypto?.randomUUID) return crypto.randomUUID(); } catch {}
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
     const r = Math.random()*16|0, v = c==='x' ? r : (r&0x3|0x8);
     return v.toString(16);
   });
 }
+
+// ---------- WebSocket health ----------
+window.addEventListener('jfws:open', () => {
+  wsHealthy = true;
+  log('WS open');
+  // do NOT pause polling yet; wait for actual data
+});
+
+window.addEventListener('jfws:close', () => {
+  wsHealthy = false;
+  wsHasData = false;
+  log('WS closed → resume polling');
+  startPolling();
+});
+
+window.addEventListener('jfws:sessions', (ev) => {
+  try {
+    const list = ev.detail || [];
+    sessionCache = new Map(list.map(s => [s.Id, s]));
+    wsHasData = true;
+    wsLastAt = Date.now();
+    // pause polling now that WS is confirmed healthy
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    fetchAndRenderNowPlaying(false).catch(e => uiErr('WS render', e));
+  } catch (e) {
+    uiErr('WS sessions handler', e);
+  }
+});
+
+function startWsWatchdog(){
+  if (wsWatchdog) clearInterval(wsWatchdog);
+  // if WS goes silent for 8s, resume polling; when WS sends again, polling pauses
+  wsWatchdog = setInterval(() => {
+    if (wsHealthy && wsHasData) {
+      const silent = Date.now() - wsLastAt;
+      if (silent > 8000) {
+        log('WS silent', silent, 'ms → resume polling as fallback');
+        wsHasData = false; // until we get next push
+        startPolling();
+      }
+    }
+  }, 2000);
+}
+
 function getCfg(){
   const raw = JSON.parse(localStorage.getItem('jf_remote_cfg') || '{}');
   if (!raw.deviceId) { raw.deviceId = makeUUID(); localStorage.setItem('jf_remote_cfg', JSON.stringify(raw)); }
+  // Back-compat: ensure bridgePrefs exists; don't clobber existing prefs.
+  if (!raw.bridgePrefs || typeof raw.bridgePrefs !== 'object') raw.bridgePrefs = {};
+  // Optional: if an old global forceBridge exists, keep it as a fallback
+  // by storing on a special key '*' (won't override explicit per-session picks).
+  if (typeof raw.forceBridge === 'boolean' && raw.bridgePrefs['*'] == null) {
+    raw.bridgePrefs['*'] = !!raw.forceBridge;
+  }
   return Object.assign({}, defaults, raw);
 }
+
 function setCfg(newCfg){
   localStorage.setItem('jf_remote_cfg', JSON.stringify(newCfg));
   return newCfg;
+}
+
+function getBridgePrefForSession(sessionId, cfg = getCfg()){
+  if (sessionId && cfg.bridgePrefs && sessionId in cfg.bridgePrefs) return !!cfg.bridgePrefs[sessionId];
+  // Fallback to legacy wildcard or OFF by default
+  if (cfg.bridgePrefs && '*' in cfg.bridgePrefs) return !!cfg.bridgePrefs['*'];
+  return false; // default OFF
+}
+
+function setBridgePrefForSession(sessionId, on){
+  const cfg = getCfg();
+  cfg.bridgePrefs = cfg.bridgePrefs || {};
+  if (sessionId) cfg.bridgePrefs[sessionId] = !!on;
+  setCfg(cfg);
 }
 
 // ---------- Settings sheet helpers (iOS-safe inline hooks) ----------
@@ -131,7 +177,7 @@ window.__openSettings  = function(){
   els.bridgeUrl.value   = c.bridgeUrl || '';
   els.bridgeSecret.value= c.bridgeSecret || '';
   els.pollMs.value      = c.pollMs || defaults.pollMs;
-  els.sheet?.classList.add('open');
+  els.useBridge.checked = getBridgePrefForSession(c.sessionId, c);  els.sheet?.classList.add('open');
   if (location.hash !== '#sheet') history.replaceState(null,'','#sheet');
 };
 window.__closeSettings = function(){
@@ -149,10 +195,10 @@ window.__saveSettings = function(){
     pollMs: parseInt(els.pollMs.value, 10) || defaults.pollMs,
     sessionId: els.sessionSelect?.value || null,
     bridgeUrl: els.bridgeUrl.value.trim().replace(/\/$/, ''),
-    bridgeSecret: els.bridgeSecret.value.trim(),
-    forceBridge: !!els.useBridge?.checked
+    bridgeSecret: els.bridgeSecret.value.trim()
   };
   setCfg(c);
+  try { setBridgePrefForSession(c.sessionId || prev.sessionId || null, !!els.useBridge?.checked); } catch {}
   if (els.status){ els.status.textContent = 'Saved.'; setTimeout(()=> els.status.textContent='', 1200); }
   log('Saved cfg', c);
   window.JFWS?.stop?.();
@@ -190,7 +236,13 @@ async function jfPost(path, body) {
   const c = getCfg();
   const url = `${c.serverUrl}${path}`;
   log('POST', url, body||null);
-  const r = await fetch(url, { method:'POST', headers: { ...authHeader(c), 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : null });
+  const headers = { ...authHeader(c) };
+  const init = { method:'POST', headers };
+  if (body !== undefined && body !== null) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+  const r = await fetch(url, init);
   if (!r.ok && r.status !== 204) { const t = await r.text().catch(()=>r.statusText); throw new Error(`${r.status} ${t}`); }
   return r;
 }
@@ -206,10 +258,15 @@ async function bridgePost(path){
 }
 
 function isLikelyFinamp(s){ const name = `${s?.Client||''} ${s?.DeviceName||''}`.toLowerCase(); return name.includes('finamp'); }
+
 function shouldUseBridge(){
   const c = getCfg();
-  const s = c.sessionId ? sessionCache.get(c.sessionId) : null;
-  return !!c.forceBridge || !s?.SupportsMediaControl || isLikelyFinamp(s);
+  return getBridgePrefForSession(c.sessionId, c); // per-session; default OFF
+}
+
+function updateBridgeCheckboxEnabled(){
+  const c = getCfg();
+  if (els.useBridge) els.useBridge.disabled = !c.sessionId;
 }
 
 // ---------- Sessions ----------
@@ -285,20 +342,28 @@ els.sessionSelect?.addEventListener('change', ()=>{
   const picked = els.sessionSelect.value || null;
   setCfg({ ...cfg, sessionId: picked });
   log('Session changed', picked);
+  if (els.useBridge) els.useBridge.checked = getBridgePrefForSession(picked, getCfg());
   applyModeUI();
   fetchAndRenderNowPlaying(true).catch(e=>uiErr('Refresh after session change', e));
 });
-els.useBridge?.addEventListener('change', ()=>{ const cfg=getCfg(); setCfg({ ...cfg, forceBridge: !!els.useBridge.checked }); applyModeUI(); });
 
+els.useBridge?.addEventListener('change', ()=>{
+  const cfg = getCfg();
+  const sid = cfg.sessionId || null;
+  setBridgePrefForSession(sid, !!els.useBridge.checked);
+  log('Bridge pref set', { sessionId: sid, on: !!els.useBridge.checked });
+  applyModeUI();
+});
 // ---------- Controls ----------
 function applyModeUI(){
   const c = getCfg();
   const s = c?.sessionId ? sessionCache.get(c.sessionId) : null;
-  const bridge = shouldUseBridge();
-  const sup = new Set((s && s.SupportedCommands) || []);
+  const hasItem = !!s?.NowPlayingItem;
   const prev = els.btnPrev, next = els.btnNext;
-  if (prev) prev.disabled = (!bridge && sup.size && !sup.has('PreviousTrack'));
-  if (next) next.disabled = (!bridge && sup.size && !sup.has('NextTrack'));
+  if (prev) prev.disabled = !hasItem;
+  if (next) next.disabled = !hasItem;
+  // (Optionally also guard the main toggle)
+  if (els.btnToggle) els.btnToggle.disabled = !hasItem;
 }
 
 async function sendCmd(cmd){
@@ -310,27 +375,56 @@ async function sendCmd(cmd){
     await bridgePost(path);
   } else {
     if (cmd === 'Toggle'){
-      const s = sessionCache.get(c.sessionId);
-      const paused = s?.PlayState?.IsPaused;
-      await jfPost(`/Sessions/${c.sessionId}/Playing/${paused ? 'Unpause' : 'Pause'}`);
+      // Use server-side toggle; avoids relying on cached state
+      try {
+        await jfPost(`/Sessions/${c.sessionId}/Playing/TogglePause`);
+      } catch (e) {
+        // Fallback for older servers: fetch live state then pause/unpause
+        try {
+          const sessions = await jfGet(`/Sessions?t=${Date.now()}`);
+          sessionCache = new Map(sessions.map(s => [s.Id, s]));
+          const s = sessionCache.get(c.sessionId);
+          const paused = !!s?.PlayState?.IsPaused;
+          await jfPost(`/Sessions/${c.sessionId}/Playing/${paused ? 'Unpause' : 'Pause'}`);
+        } catch { throw e; }
+      }
     } else if (cmd === 'Prev' || cmd === 'Next'){
       await jfPost(`/Sessions/${c.sessionId}/Playing/${cmd === 'Prev' ? 'PreviousTrack' : 'NextTrack'}`);
     }
   }
 }
 
-window.__lastVol = 100;
+window.__lastVol = null;
 async function adjustVolume(delta){
   const c = getCfg();
   if (!c?.sessionId) throw new Error('Pick a session first.');
   if (shouldUseBridge()){
     await bridgePost(delta>0 ? '/volup' : '/voldown');
   } else {
-    const s = sessionCache.get(c.sessionId);
-    const base = (typeof s?.VolumeLevel === 'number') ? s.VolumeLevel : (window.__lastVol ?? 100);
-    const newVol = Math.max(0, Math.min(100, base + delta));
-    await jfPost(`/Sessions/${c.sessionId}/Command`, { Name:'SetVolume', Arguments:{ Volume:String(newVol) }});
-    window.__lastVol = newVol;
+  // Prefer absolute SetVolume *only* when we know the current level.
+    let s = sessionCache.get(c.sessionId);
+    let base = (typeof s?.VolumeLevel === 'number') ? s.VolumeLevel : window.__lastVol;
+
+    if (typeof base !== 'number') {
+     // Try one fast fetch to learn the real level.
+      try {
+        const sessions = await jfGet(`/Sessions?t=${Date.now()}`);
+        sessionCache = new Map(sessions.map(x => [x.Id, x]));
+        s = sessionCache.get(c.sessionId);
+        base = (typeof s?.VolumeLevel === 'number') ? s.VolumeLevel : null;
+      } catch { /* ignore; will fall back */ }
+    }
+
+    if (typeof base === 'number') {
+      const newVol = Math.max(0, Math.min(100, base + delta));
+      await jfPost(`/Sessions/${c.sessionId}/Command`, { Name:'SetVolume', Arguments:{ Volume:String(newVol) }});
+      window.__lastVol = newVol;
+    } else {
+      // Unknown base → ask the player to step itself (no jumps).
+      await jfPost(`/Sessions/${c.sessionId}/Command`, { Name: delta > 0 ? 'VolumeUp' : 'VolumeDown' });
+      // Opportunistically refresh so we can learn the level for next time.
+      setTimeout(()=> fetchAndRenderNowPlaying(false).catch(()=>{}), 200);
+    }
   }
 }
 
@@ -388,6 +482,9 @@ async function fetchAndRenderNowPlaying(forceArt=false){
 
   const pos = Math.floor((s.PlayState?.PositionTicks || 0)/1e7);
   const dur = Math.floor((s.NowPlayingItem.RunTimeTicks || 0)/1e7);
+  if (typeof s.VolumeLevel === 'number') {
+    window.__lastVol = s.VolumeLevel;
+  }
   const fmt = x => `${Math.floor(x/60)}:${String(x%60).padStart(2,'0')}`;
   els.tCur.textContent = fmt(pos); els.tDur.textContent = fmt(dur);
   els.seekRange.max = dur || 0; els.seekRange.value = Math.min(pos, dur || 0); updateSeekCss();
@@ -418,8 +515,7 @@ async function fetchAndRenderNowPlaying(forceArt=false){
 // ---------- Polling ----------
 function startPolling(){
   if (pollTimer) clearInterval(pollTimer);
-  // If WS is healthy, don't run a parallel poll loop
-  if (wsHealthy) { log('Polling skipped (WS healthy)'); return; }
+  if (wsHealthy && wsHasData) { log('Polling skipped (WS delivering data)'); return; }
   const c0 = getCfg();
   const ms = parseInt(c0.pollMs || defaults.pollMs, 10);
   log('Start polling', ms, 'ms');
@@ -442,7 +538,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   try {
     // kick off websocket (no-op if ws.js isn’t loaded)
     window.JFWS?.connect?.();
-
+    startWsWatchdog();
     await loadSessions();
     startPolling();
   } catch(e) {
