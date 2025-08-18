@@ -15,10 +15,10 @@ A minimal, installable web app to control a Jellyfin playback session (e.g., And
 - Install the bridge on your Android phone, and enter your IP, shared secret, and toggle "use bridge for this session"
 
 ## Notes
-- The PWA technically supports websockets, however there are still some bugs so currently it falls back to polling via the REST API.
+- The PWA technically supports websockets for connection to Jellyfin, however there are still some bugs so currently it falls back to polling via the REST API.
 - Settings are saved locally in the browser (localStorage).
 - Service Worker provides basic offline caching of app shell assets.
-- Volume, shuffle, etc. rely on the target Jellyfin client's support for those commands, if not using the Android media control bridge.
+- Support for controlling Jellyfin sessions directly rely on the target Jellyfin client's support for those commands, if not using the Android media control bridge.
 
 ## Deploy
 For a quick test, you can run a simple static server, e.g. with Python:
