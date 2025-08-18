@@ -23,241 +23,107 @@
     --font-base: clamp(14.5px, 3.8vw, 16px);
     --font-title: clamp(18px, 4.6vw, 22px);
   }
-
-  /* global reset for sizing */
   *, *::before, *::after { box-sizing: border-box; }
-
-  html,body{
-    margin:0; padding:0;
-    background:var(--bg); color:var(--text);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    font-size: var(--font-base);
-  }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; font-size:var(--font-base); }
 
   /* app bar */
   .appbar{
-    position:sticky; top:0; z-index:10;
-    display:flex; align-items:center; gap:.75rem;
-    padding: .8rem var(--container-pad);
+    position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:.75rem;
+    padding:.8rem var(--container-pad);
     background:linear-gradient(180deg,rgba(10,15,26,.95),rgba(10,15,26,.65));
-    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
     border-bottom:1px solid #0f172a;
   }
-  .appbar h1{ margin:0; flex:1; font-size:clamp(1rem, 3.6vw, 1.15rem); }
+  .appbar h1{ margin:0; flex:1; font-size:clamp(1rem,3.6vw,1.15rem); }
   .iconbtn{
     background:var(--btn); border:1px solid var(--btn-border); color:var(--text);
-    padding:.55rem .7rem; border-radius:.7rem; font-size:1rem;
-    text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+    padding:.55rem .7rem; border-radius:.7rem; font-size:1rem; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
   }
-  .gear-btn{
-    margin-left:auto; width:40px; height:40px; padding:0;
-    border-radius:10px; line-height:1;
-  }
+  .gear-btn{ margin-left:auto; width:40px; height:40px; padding:0; border-radius:10px; line-height:1; }
+  .hdr-btn{ margin-left:.5rem; width:40px; height:40px; padding:0; border-radius:10px; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
 
-  /* main container */
-  .container{
-    padding: 0px;
-    margin: 0 auto;
-    padding-top: 20px;
-    max-width: min(92vw, 780px);
-  }
+  /* tabs */
+  .tabs{ display:flex; gap:.35rem; align-items:center; margin-left:.25rem; }
+  .tab{ background:var(--btn); border:1px solid var(--btn-border); color:var(--text); padding:.4rem .6rem; border-radius:.6rem; font-size:.9rem; }
+  .tab[aria-selected="true"]{ background:#192337; border-color:#243045; }
 
-  .card{
-    background: var(--card);
-    border:1px solid #1f2a3b;
-    border-radius: var(--radius);
-    padding: var(--card-pad);
-    margin-bottom: var(--space);
-    box-shadow: 0 4px 12px rgba(0,0,0,.25);
-  }
+  /* mode visibility via class on <body> */
+  .only-jf{ display:block; }
+  .only-bridge{ display:block; }
+  .mode-bridge .only-jf{ display:none !important; }
+  .mode-jf .only-bridge{ display:none !important; }
 
-  /* rows & form controls */
-  .row{ display:grid; grid-template-columns: 1fr 1fr; gap: var(--space); }
-  @media (max-width: 700px){ .row{ grid-template-columns: 1fr; } }
+  /* main container + cards */
+  .container{ padding:0; margin:0 auto; padding-top:20px; max-width:min(92vw,780px); }
+  .card{ background:var(--card); border:1px solid #1f2a3b; border-radius:var(--radius); padding:var(--card-pad); margin-bottom:var(--space); box-shadow:0 4px 12px rgba(0,0,0,.25); }
 
-  .sess-row{ display:grid; grid-template-columns: 1fr auto; gap: var(--space); align-items:center; }
-
-  select, input[type=text], input[type=password], input[type=number]{
-    width:100%; min-width:0; max-width:100%;
-    padding:.65rem .7rem;
-    border-radius:.55rem;
-    border:1px solid #2b3648;
-    background:#0d1524; color:var(--text);
-    font-size: var(--font-base);
-  }
+  /* rows & inputs */
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space); }
+  @media (max-width:700px){ .row{ grid-template-columns:1fr; } }
+  .sess-row{ display:grid; grid-template-columns:1fr auto; gap:var(--space); align-items:center; }
+  select,input[type=text],input[type=password],input[type=number]{ width:100%; min-width:0; max-width:100%; padding:.65rem .7rem; border-radius:.55rem; border:1px solid #2b3648; background:#0d1524; color:var(--text); font-size:var(--font-base); }
   label{ display:block; color:var(--muted); font-size:var(--font-sm); margin-bottom:.25rem; }
   .inline-label{ display:inline; margin-left:.5rem; margin-bottom:0; }
 
   /* now playing */
-  .np{
-    display:grid;
-    grid-template-columns: var(--art) 1fr;
-    gap: var(--gap);
-    align-items:center;
-  }
-  .art{
-    width: var(--art); height: var(--art);
-    border-radius: calc(var(--radius) - 4px);
-    background:#0b1220; object-fit:cover; border:1px solid #1f2a3b
-  }
-  .title{ font-weight:600; line-height:1.2; margin-bottom:.15rem; font-size: var(--font-title); }
-  .subtle{ color: var(--muted); font-size: var(--font-sm); }
-  .time{ display:flex; justify-content:space-between; font-variant-numeric: tabular-nums; color:var(--muted); font-size: var(--font-sm); margin-top:.25rem; }
-  input[type=range]{ width:100%; accent-color: var(--accent); }
+  .np{ display:grid; grid-template-columns:var(--art) 1fr; gap:var(--gap); align-items:center; }
+  .art{ width:var(--art); height:var(--art); border-radius:calc(var(--radius) - 4px); background:#0b1220; object-fit:cover; border:1px solid #1f2a3b }
+  .title{ font-weight:600; line-height:1.2; margin-bottom:.15rem; font-size:var(--font-title); }
+  .subtle{ color:var(--muted); font-size:var(--font-sm); }
+  .time{ display:flex; justify-content:space-between; font-variant-numeric:tabular-nums; color:var(--muted); font-size:var(--font-sm); margin-top:.25rem; }
+  input[type=range]{ width:100%; accent-color:var(--accent); }
 
   /* control row */
-  .controls-row{
-    display:flex; align-items:center; justify-content:center;
-    flex-wrap: nowrap; gap: var(--gap); margin-top: .9rem;
-  }
-  .icon{
-    background: var(--btn);
-    border:1px solid var(--btn-border);
-    color: var(--text);
-    width: var(--icon); height: var(--icon);
-    border-radius: calc(var(--radius) - 2px);
-    display:inline-flex; align-items:center; justify-content:center;
-    flex: 0 0 auto;
-  }
-  .icon.primary{
-    background:#24324d; border-color:#243045;
-    width: calc(var(--icon) + 8px); height: calc(var(--icon) + 8px);
-  }
+  .controls-row{ display:flex; align-items:center; justify-content:center; flex-wrap:nowrap; gap:var(--gap); margin-top:.9rem; }
+  .icon{ background:var(--btn); border:1px solid var(--btn-border); color:var(--text); width:var(--icon); height:var(--icon); border-radius:calc(var(--radius) - 2px); display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .icon.primary{ background:#24324d; border-color:#243045; width:calc(var(--icon) + 8px); height:calc(var(--icon) + 8px); }
   .icon svg{ display:block; }
-
   .ok{ color:#7ef0a3 } .err{ color:#ff8da1 }
 
-  /* settings sheet (deduped + safe-area) */
+  /* settings sheet */
   .sheet{ position:fixed; inset:0; display:none; z-index:1000; }
   .sheet.open{ display:block; }
-  #sheet:target{ display:block; } /* hash fallback */
+  #sheet:target{ display:block; }
   .scrim{ position:absolute; inset:0; background:rgba(0,0,0,.55); z-index:1000; }
-  .panel{
-    position:absolute; left:0; right:0; bottom:0; z-index:1001;
-    background:var(--card);
-    border-top-left-radius: var(--radius);
-    border-top-right-radius: var(--radius);
-    padding: var(--card-pad);
-    padding-bottom: calc(var(--card-pad) + env(safe-area-inset-bottom, 0px));
-    max-height:85vh; overflow:auto;
-  }
+  .panel{ position:absolute; left:0; right:0; bottom:0; z-index:1001; background:var(--card); border-top-left-radius:var(--radius); border-top-right-radius:var(--radius); padding:var(--card-pad); padding-bottom:calc(var(--card-pad) + env(safe-area-inset-bottom, 0px)); max-height:85vh; overflow:auto; }
   .panel h2{ margin:.25rem 0 1rem 0; font-size:1rem; }
   .panel .row{ margin-bottom:.6rem; }
   .panel .actions{ display:flex; gap:.6rem; justify-content:flex-end; margin-top:.5rem; }
 
-  /* tiny adjustment for very narrow phones */
-  @media (max-width: 360px){
-    :root{ --icon: 38px; --art: 68px; }
-    .controls-row{ gap: .6rem; }
-  }
+  @media (max-width:360px){ :root{ --icon:38px; --art:68px; } .controls-row{ gap:.6rem; } }
 
-  /* ---- Button reset & theming (iOS/Safari safe) ---- */
-button, .iconbtn {
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--btn);
-  border: 1px solid var(--btn-border);
-  color: var(--text);
-  border-radius: .7rem;
-  cursor: pointer;
-}
-button:disabled, .icon:disabled { opacity: .55; cursor: not-allowed; }
-.icon { /* keep icon buttons matching theme */
-  background: var(--btn);
-  border: 1px solid var(--btn-border);
-  color: var(--text);
-}
-.icon.primary { background:#192337; border-color:#243045; }
-.big { background: var(--btn); border: 1px solid var(--btn-border); color: var(--text); }
+  /* buttons reset / theming */
+  button,.iconbtn{ -webkit-appearance:none; appearance:none; background:var(--btn); border:1px solid var(--btn-border); color:var(--text); border-radius:.7rem; cursor:pointer; }
+  button:disabled,.icon:disabled{ opacity:.55; cursor:not-allowed; }
+  .icon.primary{ background:#192337; border-color:#243045; }
+  .big{ background:var(--btn); border:1px solid var(--btn-border); color:var(--text); }
 
-/* ---- Range / progress styling (dark track, gray fill, square thumb) ---- */
-input[type=range]{
-  --track-h: 8px;
-  --thumb: 7px;
-  --fill: #687180;   /* progress (gray) */
-  --track: #0f172a;  /* rest of track (dark gray) */
-  --thumb-bg: #5c6473; /* small square knob */
-  width: 100%;
-  background: transparent;
-}
+  /* range styling */
+  input[type=range]{ --track-h:8px; --thumb:7px; --fill:#687180; --track:#0f172a; --thumb-bg:#5c6473; width:100%; background:transparent; }
+  input[type=range]::-webkit-slider-runnable-track{ height:var(--track-h); border-radius:0; border:1px solid #1f2a3b; background:linear-gradient(to right,var(--fill) 0 var(--pct,0%),var(--track) 0); }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:var(--thumb); height:var(--thumb); background:var(--thumb-bg); border:0; border-radius:1px; margin-top:calc((var(--track-h) - var(--thumb))/2); }
+  input[type=range]::-moz-range-track{ height:var(--track-h); border-radius:0; border:1px solid #1f2a3b; background:var(--track); }
+  input[type=range]::-moz-range-progress{ height:var(--track-h); border-radius:2px 0 0 2px; background:var(--fill); border:1px solid #425673; border-right:none; }
+  input[type=range]::-moz-range-thumb{ width:var(--thumb); height:var(--thumb); background:var(--thumb-bg); border:1px solid #2b3648; border-radius:1px; }
+  button:focus-visible,.iconbtn:focus-visible,input[type=range]:focus-visible{ outline:2px solid #243045; outline-offset:2px; }
 
-/* WebKit (Safari/Chrome/Edge) */
-input[type=range]::-webkit-slider-runnable-track{
-  height: var(--track-h);
-  border-radius: 0px;
-  border: 1px solid #1f2a3b;
-  background: linear-gradient(to right,
-    var(--fill) 0 var(--pct, 0%),
-    var(--track) 0);
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance: none;
-  width: var(--thumb); height: var(--thumb);
-  background: var(--thumb-bg);
-  border: 0px solid #4e5a6c;
-  border-radius: 1px;            /* square-ish */
-  margin-top: calc((var(--track-h) - var(--thumb)) / 2);
-}
-
-/* Firefox */
-input[type=range]::-moz-range-track{
-  height: var(--track-h);
-  border-radius: 0px;
-  border: 1px solid #1f2a3b;
-  background: var(--track);
-}
-input[type=range]::-moz-range-progress{
-  height: var(--track-h);
-  border-radius: 2px 0 0 2px;
-  background: var(--fill);
-  border: 1px solid #425673;
-  border-right: none;
-}
-input[type=range]::-moz-range-thumb{
-  width: var(--thumb); height: var(--thumb);
-  background: var(--thumb-bg);
-  border: 1px solid #2b3648;
-  border-radius: 1px;
-}
-
-/* Remove default focus glow; keep subtle outline */
-button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
-  outline: 2px solid #243045; outline-offset: 2px;
-}
-
-.hdr-btn{
-  margin-left:.5rem;
-  width:40px; height:40px; padding:0;
-  border-radius:10px; line-height:1;
-  display:inline-flex; align-items:center; justify-content:center;
-}
-
-.art[data-empty="1"],
-.art:not([src]),
-.art[src=""]{
-  border-color: transparent;   /* no white/gray ring */
-  visibility: hidden;          /* keep layout space, hide broken icon */
-}
-
+  /* hide image border/ghost when missing */
+  .art[data-empty="1"], .art:not([src]), .art[src=""]{ border-color:transparent; visibility:hidden; }
 </style>
-
 </head>
-<body>
+
+<body class="mode-jf">
 <header class="appbar">
   <h1>Jellyfin Remote</h1>
   <span id="wsBadge" class="subtle" style="margin-left:.75rem;font-size:.8em;"></span>
 
-  <a id="btnReload"
-     href="#"
-     class="iconbtn hdr-btn"
-     aria-label="Reload page"
-     onclick="location.reload(); return false;">⟳</a>
+  <a id="btnReload" href="#" class="iconbtn hdr-btn" aria-label="Reload page" onclick="location.reload(); return false;">⟳</a>
+  <a id="btnSettings" href="#sheet" class="iconbtn hdr-btn" aria-label="Settings" onclick="__openSettings()">⚙️</a>
 
-  <a id="btnSettings"
-     href="#sheet"
-     class="iconbtn hdr-btn"
-     aria-label="Settings"
-     onclick="__openSettings()">⚙️</a>
+  <div class="tabs" role="tablist" aria-label="Mode">
+    <button id="tabJf" class="tab" role="tab" aria-selected="true" data-mode="jf">Jellyfin</button>
+    <button id="tabBridge" class="tab" role="tab" aria-selected="false" data-mode="bridge">Bridge</button>
+  </div>
 </header>
 
 <main class="container">
@@ -271,49 +137,28 @@ button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
         <input id="seekRange" type="range" min="0" max="0" value="0" />
       </div>
     </div>
-<div class="controls controls-row">
-  <button class="icon" id="btnVolDown" aria-label="Volume down">
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path d="M3 10v4h4l5 4V6L7 10H3zM17.5 12a4.5 4.5 0 0 0-1.5-3.35v6.7A4.5 4.5 0 0 0 17.5 12z"/>
-    </svg>
-  </button>
-
-  <button class="icon" id="btnPrev" aria-label="Previous">
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path d="M6 6h2v12H6V6zm3 6 9 6V6l-9 6z"/>
-    </svg>
-  </button>
-
-  <button class="icon primary" id="btnToggle" aria-label="Play/Pause">
-    <!-- we’ll swap this path between play and pause -->
-    <svg id="iconToggle" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-      <path d="M8 5v14l11-7z"/> <!-- play -->
-    </svg>
-  </button>
-
-  <button class="icon" id="btnNext" aria-label="Next">
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path d="M16 6h2v12h-2V6zM6 18l9-6-9-6v12z"/>
-    </svg>
-  </button>
-
-  <button class="icon" id="btnVolUp" aria-label="Volume up">
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path d="M3 10v4h4l5 4V6L7 10H3zM19 12a6 6 0 0 0-2-4.47v8.94A6 6 0 0 0 19 12zm2.5 0a8.5 8.5 0 0 0-2.5-6.3v12.6A8.5 8.5 0 0 0 21.5 12z"/>
-    </svg>
-  </button>
-</div>
-<!-- <div class="controls controls-row" style="justify-content:flex-end;margin-top:.6rem;">
-  <button class="icon" id="btnRefreshMeta" title="Refresh Jellyfin metadata" aria-label="Refresh">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-      <path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 6h-2.1a6 6 0 1 1-1.89-4.24l-2.26 2.26H20V4l-2.35 2.35z"/>
-    </svg>
-  </button>
-</div> -->
+    <div class="controls controls-row">
+      <button class="icon" id="btnVolDown" aria-label="Volume down">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3zM17.5 12a4.5 4.5 0 0 0-1.5-3.35v6.7A4.5 4.5 0 0 0 17.5 12z"/></svg>
+      </button>
+      <button class="icon" id="btnPrev" aria-label="Previous">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 6h2v12H6V6zm3 6 9 6V6l-9 6z"/></svg>
+      </button>
+      <button class="icon primary" id="btnToggle" aria-label="Play/Pause">
+        <svg id="iconToggle" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="icon" id="btnNext" aria-label="Next">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M16 6h2v12h-2V6zM6 18l9-6-9-6v12z"/></svg>
+      </button>
+      <button class="icon" id="btnVolUp" aria-label="Volume up">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3zM19 12a6 6 0 0 0-2-4.47v8.94A6 6 0 0 0 19 12zm2.5 0a8.5 8.5 0 0 0-2.5-6.3v12.6A8.5 8.5 0 0 0 21.5 12z"/></svg>
+      </button>
+    </div>
     <div id="opStatus" class="subtle" style="margin-top:.5rem;"></div>
   </section>
 
-  <section class="card">
+  <!-- Jellyfin-only session UI -->
+  <section class="card only-jf">
     <div class="sess-row">
       <div>
         <label for="sessionSelect">Active sessions</label>
@@ -324,20 +169,21 @@ button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
         <button class="big" id="refreshSessions">Refresh</button>
       </div>
     </div>
-
-    <!-- Short, inline bridge toggle -->
     <div style="margin-top:.6rem;display:flex;align-items:center;">
       <input type="checkbox" id="useBridge" />
       <label for="useBridge" class="inline-label">Use bridge for this session</label>
     </div>
   </section>
+
+  <!-- Optional info only in Bridge mode -->
+  <section class="card only-bridge">
+    <div class="subtle">Bridge mode: controlling phone directly (no Jellyfin API required).</div>
+  </section>
 </main>
 
 <!-- Settings sheet -->
 <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-  <!-- scrim closes sheet; href clears hash so :target hides -->
   <a href="#" class="scrim" id="sheetClose" onclick="__closeSettings()"></a>
-
   <div class="panel">
     <h2 id="sheetTitle">Settings</h2>
 
@@ -383,14 +229,29 @@ button:focus-visible, .iconbtn:focus-visible, input[type=range]:focus-visible{
     </div>
 
     <div class="actions">
-  <button class="big" id="test" onclick="__testConnection()">Test Connection</button>
-  <button class="big" id="save" onclick="__saveSettings()">Save</button>
-  <a href="#" class="big" id="sheetCloseBtn" onclick="__closeSettings()">Close</a>
-</div>
+      <button class="big" id="test" onclick="__testConnection()">Test Connection</button>
+      <button class="big" id="save" onclick="__saveSettings()">Save</button>
+      <a href="#" class="big" id="sheetCloseBtn" onclick="__closeSettings()">Close</a>
+    </div>
 
     <div id="status" class="subtle" style="margin-top:.4rem;"></div>
   </div>
 </div>
+
+<!-- Tiny inline: tab -> body class on first paint (so CSS hides/ shows correctly even before app.js loads) -->
+<script>
+  (function(){
+    const MODE_KEY='jf_remote_mode';
+    const mode=(localStorage.getItem(MODE_KEY)==='bridge')?'bridge':'jf';
+    document.body.classList.toggle('mode-bridge', mode==='bridge');
+    document.body.classList.toggle('mode-jf', mode==='jf');
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const tj=document.getElementById('tabJf'), tb=document.getElementById('tabBridge');
+      tj?.setAttribute('aria-selected', String(mode==='jf'));
+      tb?.setAttribute('aria-selected', String(mode==='bridge'));
+    });
+  })();
+</script>
 
 <script defer src="ws.js"></script>
 <script src="app.js"></script>
